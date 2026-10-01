@@ -4,7 +4,7 @@
 
 **One local word completion inside Claude Code**
 
-[Features](#features) • [Install](#install) • [Usage](#usage) • [Commands](#commands) • [How-it-works](#how-it-works)
+[Features](#features) • [Install](#install) • [Usage](#usage) • [Commands](#commands) • [Roadmap](#roadmap) • [How-it-works](#how-it-works)
 
 </div>
 
@@ -29,7 +29,7 @@
 
 ## Install
 
-Until a Cargo release is available, build and install from source:
+Until the [Cargo publishing work](https://github.com/MatheusBBarni/ccword/issues/1) is complete, build and install from source:
 
 ```sh
 git clone https://github.com/MatheusBBarni/ccword.git
@@ -141,6 +141,11 @@ ccword ctl learn undo
 ```
 
 `--preview` reports counts without changing the database. `--apply` first creates a restorable backup; `undo` restores it.
+
+## Roadmap
+
+- [Publish `ccword` to crates.io](https://github.com/MatheusBBarni/ccword/issues/1)
+- [Add an interactive configuration TUI](https://github.com/MatheusBBarni/ccword/issues/2)
 
 ## How it works
 
