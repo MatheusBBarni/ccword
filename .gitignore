@@ -3,7 +3,5 @@
 **/*.sqlite-wal
 **/*.sqlite-shm
 .DS_Store
-.agents/
-.claude/
-.pi/
 skills-lock.json
+.spec-finder
