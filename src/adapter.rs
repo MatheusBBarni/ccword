@@ -412,13 +412,6 @@ mod tests {
         assert_eq!(view.partial().unwrap().prefix, "req");
     }
 
-
-
-
-
-
-
-
     #[test]
     fn unknown_layout_fails_open() {
         let view = inspect(&parse("\x1b[1;1Hjust a transcript line\n"));
@@ -433,6 +426,4 @@ mod tests {
         assert_eq!(view.observed_version.as_deref(), Some("9.0.1"));
         assert!(!view.confident);
     }
-
-
 }

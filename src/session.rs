@@ -97,7 +97,7 @@ pub fn run_pty(
     thread::spawn(move || pty_loop(reader, pty_tx));
 
     let apple = AppleCompleter::new();
-    let mut store = if config.mode == Mode::Ngram || config.learning {
+    let mut store = if matches!(config.mode, Mode::Ngram | Mode::Auto) || config.learning {
         Store::open(paths).ok()
     } else {
         None
@@ -149,7 +149,7 @@ pub fn run_pty(
                 if last_reload.elapsed() > Duration::from_secs(1) {
                     config = Config::load(paths);
                     engine_set_space(&mut engine, config.right_arrow_appends_space);
-                    if (config.mode == Mode::Ngram || config.learning) && store.is_none() {
+                    if (matches!(config.mode, Mode::Ngram | Mode::Auto) || config.learning) && store.is_none() {
                         store = Store::open(paths).ok();
                     }
                     last_reload = std::time::Instant::now();
@@ -188,7 +188,8 @@ fn handle_user(
             && config.learning
         {
             if let Some(store) = store.as_mut() {
-                let _ = store.learn_prompt(&submitted, crate::config::now_ms(), config.half_life_days);
+                let _ =
+                    store.learn_prompt(&submitted, crate::config::now_ms(), config.half_life_days);
             }
         }
         apply_action(action, engine, proxy)?;

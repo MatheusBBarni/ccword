@@ -10,11 +10,12 @@ use crate::paths::{self, Paths};
 
 pub const PREDICTION_DEADLINE_MS: u64 = 30;
 
-/// The three v1 providers. Scores are never blended.
+/// Local completion modes. Scores are never blended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     Off,
+    Auto,
     Ngram,
     Apple,
 }
@@ -23,6 +24,7 @@ impl Mode {
     pub fn parse(text: &str) -> Option<Self> {
         match text.trim().to_ascii_lowercase().as_str() {
             "off" => Some(Self::Off),
+            "auto" => Some(Self::Auto),
             "ngram" | "n-gram" => Some(Self::Ngram),
             "apple" => Some(Self::Apple),
             _ => None,
@@ -32,6 +34,7 @@ impl Mode {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Off => "off",
+            Self::Auto => "auto",
             Self::Ngram => "ngram",
             Self::Apple => "apple",
         }
@@ -96,7 +99,7 @@ impl Config {
         match key {
             "mode" => {
                 self.mode = Mode::parse(value).ok_or_else(|| {
-                    Error::Message("mode must be off, ngram, or apple".to_string())
+                    Error::Message("mode must be off, auto, ngram, or apple".to_string())
                 })?;
             }
             "language" => {
@@ -119,7 +122,7 @@ impl Config {
                 let days: f64 = value.parse().map_err(|_| {
                     Error::Message("half-life-days must be a positive number".to_string())
                 })?;
-                if days <= 0.0 {
+                if !days.is_finite() || days <= 0.0 {
                     return Err(Error::Message(
                         "half-life-days must be a positive number".to_string(),
                     ));

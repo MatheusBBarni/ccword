@@ -23,33 +23,35 @@ pub fn hint_for(
         return None;
     }
     let started = Instant::now();
+    let learned = || {
+        let store = store?;
+        let scored = store::predict(
+            store,
+            &partial.preceding,
+            &partial.prefix,
+            config,
+            crate::config::now_ms(),
+        )
+        .ok()??;
+        suffix_for(&scored.display, &partial.prefix).filter(|suffix| !suffix.is_empty())
+    };
+    let system = || {
+        let language = if config.language.is_empty() {
+            None
+        } else {
+            Some(config.language.as_str())
+        };
+        let end = partial.start + partial.prefix.chars().count();
+        apple
+            .complete_word(buffer, partial.start, end, language)
+            .filter(|suffix| !suffix.is_empty())
+    };
     let suffix = match config.mode {
         Mode::Off => None,
-        Mode::Ngram => {
-            let store = store?;
-            let scored = store::predict(
-                store,
-                &partial.preceding,
-                &partial.prefix,
-                config,
-                crate::config::now_ms(),
-            )
-            .ok()??;
-            suffix_for(&scored.display, &partial.prefix)
-        }
-        Mode::Apple => {
-            let language = if config.language.is_empty() {
-                None
-            } else {
-                Some(config.language.as_str())
-            };
-            let end = partial.start + partial.prefix.chars().count();
-            apple.complete_word(buffer, partial.start, end, language)
-        }
+        Mode::Ngram => learned(),
+        Mode::Apple => system(),
+        Mode::Auto => learned().or_else(system),
     }?;
-    if suffix.is_empty() {
-        return None;
-    }
     let elapsed_ms = started.elapsed().as_millis();
     let _deadline = PREDICTION_DEADLINE_MS;
     Some(Hint { suffix, elapsed_ms })

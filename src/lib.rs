@@ -7,6 +7,7 @@ pub mod adapter;
 pub mod apple;
 pub mod complete;
 pub mod config;
+pub mod config_tui;
 pub mod ctl;
 pub mod debuglog;
 pub mod doctor;

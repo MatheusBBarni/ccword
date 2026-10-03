@@ -48,7 +48,14 @@ pub fn run(args: &[OsString]) -> Result<i32> {
 
 fn config_cmd(paths: &Paths, args: &[String]) -> Result<i32> {
     match args.first().map(String::as_str) {
-        None | Some("show") => {
+        None => {
+            if !crate::term::is_tty(libc::STDIN_FILENO) || !crate::term::is_tty(libc::STDOUT_FILENO)
+            {
+                return Err(Error::Message("terminal required for interactive config; use `ccword ctl config show` or `set` in scripts".into()));
+            }
+            crate::config_tui::run(paths)
+        }
+        Some("show") => {
             let config = Config::load(paths);
             println!("{}", toml::to_string_pretty(&config).unwrap_or_default());
             println!("file: {}", paths.config_file().display());
@@ -213,7 +220,7 @@ fn complete_cmd(paths: &Paths, args: &[String]) -> Result<i32> {
     }
     if prompt.is_empty() {
         return Err(Error::Message(
-            "usage: ccword ctl complete [--mode apple|ngram] <prompt>".into(),
+            "usage: ccword ctl complete [--mode off|auto|apple|ngram] <prompt>".into(),
         ));
     }
     let gates = Gates {
@@ -250,6 +257,7 @@ fn print_help() {
 ccword launches the installed claude binary and can show one local word hint.
 
   ccword [claude arguments]     launch Claude Code
+  ccword ctl config              edit all settings in a terminal
   ccword ctl config show
   ccword ctl config set <key> <value>
   ccword ctl doctor
@@ -257,10 +265,10 @@ ccword launches the installed claude binary and can show one local word hint.
   ccword ctl learn import --preview|--apply <file>
   ccword ctl learn undo
   ccword ctl hook status|install [--write-settings]|uninstall
-  ccword ctl complete [--mode apple|ngram] <prompt>
+  ccword ctl complete [--mode off|auto|apple|ngram] <prompt>
   ccword ctl version
 
-Settings keys: mode (off, ngram, apple), language, learning, min-confidence,
+Settings keys: mode (off, auto, apple, ngram), language, learning, min-confidence,
 min-support, half-life-days, debug, right-arrow-appends-space.
 
 Right Arrow accepts the hint and adds a space. Tab accepts it without a space.

@@ -308,8 +308,4 @@ mod tests {
         let suffix = engine.cached_suffix().unwrap().to_string();
         assert!(engine.overlay_bytes(&suffix).is_some());
     }
-
-
-
-
 }

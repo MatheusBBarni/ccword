@@ -48,17 +48,18 @@ cargo build --release
 
 ## Usage
 
-Choose a provider, then launch Claude Code through `ccword`:
+Choose a completion mode, then launch Claude Code through `ccword`:
 
 ```sh
-# Apple system completion
-ccword ctl config set mode apple
+# Learned local counts first, Apple completion if none qualifies.
+# Learning stays off until you explicitly enable it.
+ccword ctl config set mode auto
 ccword
 
-# Or learned local n-grams
+# Or select a single provider
+ccword ctl config set mode apple
 ccword ctl config set mode ngram
 ccword ctl config set learning on
-ccword
 ```
 
 Claude Code arguments are forwarded unchanged:
@@ -85,8 +86,9 @@ ccword --continue
 ### Configuration
 
 ```sh
-ccword ctl config show
-ccword ctl config set mode apple       # off | apple | ngram
+ccword ctl config                      # interactive; requires a terminal
+ccword ctl config show                 # script-friendly TOML output
+ccword ctl config set mode auto        # off | auto | apple | ngram
 ccword ctl config set language en      # use "system" for the macOS default
 ccword ctl config set learning on
 ccword ctl config set min-confidence 0.15
@@ -95,6 +97,16 @@ ccword ctl config set half-life-days 30
 ccword ctl config set right-arrow-appends-space on
 ccword ctl config set debug off
 ```
+
+The interactive screen shows all eight settings. Tab, Shift-Tab, and Up/Down
+move between fields; Space or Left/Right changes modes and switches. Type to
+edit language and numeric fields, Ctrl-U clears a field (an empty language
+uses the system default), Enter validates and saves all fields, and Escape
+cancels without writing. Invalid numbers show an error beside the field.
+Use a terminal at least 80 columns by 16 rows. Bare `config` fails with
+terminal-required guidance when run without a TTY; `show` and `set` do not.
+`auto` reads existing learned counts even with learning off; it does not
+authorize collecting new prompts.
 
 Configuration lives at `~/Library/Application Support/ccword/config.toml`. Changes are picked up during a running session after the next keystroke.
 
@@ -105,6 +117,7 @@ ccword ctl doctor
 ccword ctl version
 ccword ctl complete --mode apple he
 ccword ctl complete --mode ngram "please he"
+ccword ctl complete --mode auto "please he"
 ```
 
 `complete` prints only the suggested suffix, or nothing when no candidate qualifies.
@@ -145,11 +158,10 @@ ccword ctl learn undo
 ## Roadmap
 
 - [Publish `ccword` to crates.io](https://github.com/MatheusBBarni/ccword/issues/1)
-- [Add an interactive configuration TUI](https://github.com/MatheusBBarni/ccword/issues/2)
 
 ## How it works
 
-`ccword` launches Claude Code with [`portable-pty`](https://crates.io/crates/portable-pty), tracks its terminal screen, and overlays a dim suffix only when the prompt composer is confidently recognized. Apple mode calls `NSSpellChecker` through [`objc2-app-kit`](https://crates.io/crates/objc2-app-kit). N-gram mode ranks locally learned one-, two-, and three-word observations, preferring the longest matching context with enough support and confidence.
+`ccword` launches Claude Code with [`portable-pty`](https://crates.io/crates/portable-pty), tracks its terminal screen, and overlays a dim suffix only when the prompt composer is confidently recognized. Apple mode calls `NSSpellChecker` through [`objc2-app-kit`](https://crates.io/crates/objc2-app-kit). N-gram mode ranks locally learned one-, two-, and three-word observations, preferring the longest matching context with enough support and confidence. Auto mode uses an eligible learned suffix first, then Apple's suffix, and otherwise shows no hint.
 
 The n-gram database lives at `~/Library/Application Support/ccword/ngrams.sqlite`. It stores normalized token counts, display forms, and timestamps, not complete prompts. Counts can still reveal sensitive phrases, so protect or clear the database when needed.
 
