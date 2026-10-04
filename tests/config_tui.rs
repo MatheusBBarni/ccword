@@ -42,6 +42,105 @@ fn screen_displays_all_saved_settings() {
 }
 
 #[test]
+fn settings_screen_marks_focus_with_contrasting_colors() {
+    let home = tempfile::tempdir().unwrap();
+    let mut term = Terminal::spawn(&["ctl", "config"], home.path(), 24, 80, &[]);
+    term.until("Escape: cancel");
+    let heading = term.cell_colors(0, 0);
+    let focused = term.cell_colors(2, 0);
+    let inactive = term.cell_colors(3, 2);
+    assert_ne!(heading.0, inactive.0);
+    assert_ne!(focused.1, inactive.1);
+    term.send(b"\t");
+    term.until("> Language:");
+    assert_eq!(term.cell_colors(3, 0).1, focused.1);
+    term.send(b"\x1b");
+    assert_eq!(term.child.wait().unwrap().exit_code(), 0);
+}
+
+#[test]
+fn language_picker_selects_system_default_without_saving_early() {
+    let home = tempfile::tempdir().unwrap();
+    let paths = Paths::new(home.path().join("Library/Application Support/ccword"));
+    Config {
+        language: "fr".into(),
+        ..Config::default()
+    }
+    .save(&paths)
+    .unwrap();
+    let before = std::fs::read(paths.config_file()).unwrap();
+    let mut term = Terminal::spawn(&["ctl", "config"], home.path(), 24, 80, &[]);
+    term.until("Language: fr");
+    term.send(b"\t ");
+    let view = term.until("Choose language");
+    assert!(view.contains("system default"), "{view}");
+    assert_eq!(std::fs::read(paths.config_file()).unwrap(), before);
+    term.send(b"\x1b[H\r");
+    term.until("Language: system default");
+    term.send(b"\r");
+    assert_eq!(term.child.wait().unwrap().exit_code(), 0);
+    assert_eq!(Config::load(&paths).language, "");
+}
+
+#[test]
+fn clicking_language_opens_choices_and_selects_a_value() {
+    let home = tempfile::tempdir().unwrap();
+    let paths = Paths::new(home.path().join("Library/Application Support/ccword"));
+    Config {
+        language: "custom-locale".into(),
+        ..Config::default()
+    }
+    .save(&paths)
+    .unwrap();
+    let mut term = Terminal::spawn(&["ctl", "config"], home.path(), 24, 80, &[]);
+    term.until("Language: custom-locale");
+    term.send(b"\x1b[<0;12;4M");
+    term.until("Choose language");
+    term.send(b"\x1b[<0;12;3M");
+    term.until("Language: system default");
+    term.send(b"\r");
+    assert_eq!(term.child.wait().unwrap().exit_code(), 0);
+    assert_eq!(term.mouse_tracking(), vt100::MouseProtocolMode::None);
+    assert!(Config::load(&paths).language.is_empty());
+}
+
+#[test]
+fn language_click_works_with_legacy_terminal_mouse_encoding() {
+    let home = tempfile::tempdir().unwrap();
+    let mut term = Terminal::spawn(&["ctl", "config"], home.path(), 24, 80, &[]);
+    term.until("Language: system default");
+    term.send(b"\x1b[M ,$"); // left button, column 12, row 4
+    term.until("Choose language");
+    term.send(b"\x1b");
+    term.until("Language: system default");
+    term.send(b"\x1b");
+    assert_eq!(term.child.wait().unwrap().exit_code(), 0);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_language_choice_saves_selected_apple_language_when_available() {
+    use ccword::apple::{AppleCompleter, WordCompleter};
+
+    let mut languages = AppleCompleter::new().languages();
+    languages.sort_unstable();
+    let Some(first) = languages.into_iter().find(|language| !language.is_empty()) else {
+        return; // A Mac without spelling dictionaries has only system default.
+    };
+    let home = tempfile::tempdir().unwrap();
+    let paths = Paths::new(home.path().join("Library/Application Support/ccword"));
+    let mut term = Terminal::spawn(&["ctl", "config"], home.path(), 24, 80, &[]);
+    term.until("Language: system default");
+    term.send(b"\x1b[<0;12;4M");
+    term.until("Choose language");
+    term.send(b"\x1b[<0;12;4M");
+    term.until(&format!("Language: {first}"));
+    term.send(b"\r");
+    assert_eq!(term.child.wait().unwrap().exit_code(), 0);
+    assert_eq!(Config::load(&paths).language, first);
+}
+
+#[test]
 fn keyboard_edits_cancel_or_save_as_one_change() {
     let home = tempfile::tempdir().unwrap();
     let paths = Paths::new(home.path().join("Library/Application Support/ccword"));

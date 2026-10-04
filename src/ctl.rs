@@ -12,6 +12,16 @@ use crate::hook;
 use crate::learn;
 use crate::paths::Paths;
 
+pub(crate) fn flag_command(flag: &str) -> Option<&'static str> {
+    match flag {
+        "-h" | "--h" | "-help" | "--help" => Some("help"),
+        "-v" | "-V" | "--v" | "-version" | "--version" => Some("version"),
+        "-u" | "--u" | "-update" | "--update" => Some("update"),
+        "-c" | "--c" | "-config" | "--config" => Some("config"),
+        _ => None,
+    }
+}
+
 pub fn run(args: &[OsString]) -> Result<i32> {
     let args: Vec<String> = args
         .iter()
@@ -21,16 +31,25 @@ pub fn run(args: &[OsString]) -> Result<i32> {
         print_help();
         return Ok(0);
     };
+    let cmd = flag_command(cmd).unwrap_or(cmd);
+    if cmd == "help" {
+        print_help();
+        return Ok(0);
+    }
+    if cmd == "version" {
+        println!("ccword {}", env!("CARGO_PKG_VERSION"));
+        return Ok(0);
+    }
+    if cmd == "update" {
+        if args.len() != 1 {
+            return Err(Error::Message(
+                "usage: ccword --update (or ccword ctl update)".into(),
+            ));
+        }
+        return update();
+    }
     let paths = Paths::system()?;
     match cmd {
-        "help" | "--help" | "-h" => {
-            print_help();
-            Ok(0)
-        }
-        "version" => {
-            println!("ccword 0.1.0");
-            Ok(0)
-        }
         "doctor" => {
             let apple = AppleCompleter::new();
             println!("{}", doctor::report(&paths, &apple));
@@ -44,6 +63,59 @@ pub fn run(args: &[OsString]) -> Result<i32> {
             "unknown ctl command `{other}`; try `ccword ctl help`"
         ))),
     }
+}
+
+fn update() -> Result<i32> {
+    let exe = std::env::current_exe()?;
+    let bin = exe
+        .parent()
+        .ok_or_else(|| Error::Message("cannot find installation directory".into()))?;
+    if bin.file_name().is_none_or(|name| name != "bin") {
+        return Err(Error::Message(
+            "update requires an installed ccword in <root>/bin; for a source build, run `git pull --ff-only` and `cargo install --path . --locked --bin ccword --force`".into(),
+        ));
+    }
+    let root = bin
+        .parent()
+        .ok_or_else(|| Error::Message("cannot find installation root".into()))?;
+    println!(
+        "Updating ccword from https://github.com/MatheusBBarni/ccword (main) into {}",
+        bin.display()
+    );
+    io::stdout().flush()?;
+    let status = std::process::Command::new("cargo")
+        .args([
+            "install",
+            "--git",
+            "https://github.com/MatheusBBarni/ccword",
+            "--branch",
+            "main",
+            "--locked",
+            "--bin",
+            "ccword",
+            "--force",
+            "--root",
+        ])
+        .arg(root)
+        .arg("ccword")
+        .status()
+        .map_err(|err| {
+            if err.kind() == io::ErrorKind::NotFound {
+                Error::Message(
+                    "Cargo is required to update ccword; install Rust from https://rustup.rs"
+                        .into(),
+                )
+            } else {
+                Error::Message(format!("could not start Cargo update: {err}"))
+            }
+        })?;
+    if !status.success() {
+        return Err(Error::Message(format!(
+            "ccword update failed: Cargo {status}"
+        )));
+    }
+    println!("ccword updated. Run `ccword ctl version` to inspect the installed version.");
+    Ok(0)
 }
 
 fn config_cmd(paths: &Paths, args: &[String]) -> Result<i32> {
@@ -257,6 +329,10 @@ fn print_help() {
 ccword launches the installed claude binary and can show one local word hint.
 
   ccword [claude arguments]     launch Claude Code
+  ccword -h, --help             show ccword help
+  ccword -v, --version          show ccword version
+  ccword -u, --update           install latest main using Cargo (network required)
+  ccword -c, --config           open the settings TUI (terminal required)
   ccword ctl config              edit all settings in a terminal
   ccword ctl config show
   ccword ctl config set <key> <value>
@@ -267,9 +343,18 @@ ccword launches the installed claude binary and can show one local word hint.
   ccword ctl hook status|install [--write-settings]|uninstall
   ccword ctl complete [--mode off|auto|apple|ngram] <prompt>
   ccword ctl version
+  ccword ctl update
+
+Aliases: --h / -help, --v / -version / -V, --u / -update, --c / -config.
+Root flags act only when used alone; use `ccword -- --help` for Claude help.
+Update requires an installation in <root>/bin and replaces only ccword there.
 
 Settings keys: mode (off, auto, apple, ngram), language, learning, min-confidence,
 min-support, half-life-days, debug, right-arrow-appends-space.
+
+Interactive config: Tab/Shift-Tab or Up/Down moves between fields.
+Click Language or press Space on it to choose installed languages.
+Enter uses a language choice, then Enter saves settings; Escape backs out or cancels.
 
 Right Arrow accepts the hint and adds a space. Tab accepts it without a space.
 Enter submits only the text you typed or accepted. Hints stay on this Mac."

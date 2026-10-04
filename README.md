@@ -83,6 +83,33 @@ ccword --continue
 
 ## Commands
 
+### Help, version, updates, and settings
+
+```sh
+ccword --help       # -h, --h, -help
+ccword --version    # -v, -V, --v, -version
+ccword --update     # -u, --u, -update
+ccword --config     # -c, --c, -config; open the settings TUI
+```
+
+These standalone flags control `ccword`, not Claude Code. Other argument
+combinations remain forwarded unchanged; use `ccword -- --help` or
+`ccword -- --version` for Claude's own commands. The aliases also work after
+`ctl`; `ccword ctl help`, `version`, `update`, and `config` remain explicit commands.
+
+Updating builds the latest `main` from
+`https://github.com/MatheusBBarni/ccword` using Cargo, the committed lockfile,
+and only the `ccword` binary. It requires Rust/Cargo and network access and
+reinstalls into the running executable's existing `<root>/bin` directory
+(including `~/.cargo/bin` or `~/.local/bin`). It does not change your settings
+or learned history. Cargo errors return a nonzero exit status.
+
+A development executable in `target/debug` or `target/release` is not
+self-updated: pull the source and reinstall with
+`cargo install --path . --locked --bin ccword --force` (add
+`--root ~/.local` if that is your installation root).
+
+
 ### Configuration
 
 ```sh
@@ -98,11 +125,16 @@ ccword ctl config set right-arrow-appends-space on
 ccword ctl config set debug off
 ```
 
-The interactive screen shows all eight settings. Tab, Shift-Tab, and Up/Down
-move between fields; Space or Left/Right changes modes and switches. Type to
-edit language and numeric fields, Ctrl-U clears a field (an empty language
-uses the system default), Enter validates and saves all fields, and Escape
-cancels without writing. Invalid numbers show an error beside the field.
+The interactive screen shows all eight settings with colored focus and errors.
+Tab, Shift-Tab, and Up/Down move between fields. Click **Language**, or focus
+it and press Space or Right Arrow, to choose from macOS spelling languages;
+**system default** is always available. In the list, use Up/Down or click a
+choice, Home to select system default, Enter/Space to use it, and Escape to
+return without changing the field. You can also type a language code directly;
+Ctrl-U clears the field to system default. Space or Left/Right changes modes
+and switches. Type to edit numeric fields. Back on the settings screen, Enter
+validates and saves all fields, while Escape cancels without writing. Invalid
+numbers show an error beside the field.
 Use a terminal at least 80 columns by 16 rows. Bare `config` fails with
 terminal-required guidance when run without a TTY; `show` and `set` do not.
 `auto` reads existing learned counts even with learning off; it does not

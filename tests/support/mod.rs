@@ -85,6 +85,20 @@ impl Terminal {
             self.screen.process(&bytes);
         }
     }
+
+    #[allow(dead_code)] // Visual assertions live in the config TUI suite.
+    pub fn cell_colors(&self, row: u16, col: u16) -> (vt100::Color, vt100::Color) {
+        let cell = self.screen.screen().cell(row, col).unwrap();
+        (cell.fgcolor(), cell.bgcolor())
+    }
+
+    #[allow(dead_code)] // Only config UI enables mouse reporting.
+    pub fn mouse_tracking(&mut self) -> vt100::MouseProtocolMode {
+        while let Ok(bytes) = self.rx.recv_timeout(Duration::from_millis(50)) {
+            self.screen.process(&bytes);
+        }
+        self.screen.screen().mouse_protocol_mode()
+    }
 }
 
 impl Drop for Terminal {

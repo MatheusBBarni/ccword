@@ -31,6 +31,11 @@ pub use error::{Error, Result};
 
 pub fn run() -> Result<i32> {
     let mut args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    if args.len() == 1 {
+        if let Some(command) = args[0].to_str().and_then(ctl::flag_command) {
+            return ctl::run(&[command.into()]);
+        }
+    }
     match args.first().and_then(|arg| arg.to_str()) {
         Some("ctl") => {
             args.remove(0);
